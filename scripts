@@ -1,0 +1,172 @@
+-------------------------------------------------------------------------------------------------Get all users assigned to “test-app”
+
+import requests
+
+# Set your Okta API base URL and API token
+base_url = "https://example.okta.com"
+api_token = "......."
+
+# Define the app name for which you want to retrieve user assignments
+app_name = "test-app"  # Replace with the app name you're interested in
+
+# Set the API endpoint for retrieving app assignments
+endpoint = f"{base_url}/api/v1/apps/test-app/users"
+
+# Set headers for the API request
+headers = {
+    "Authorization": f"SSWS {api_token}",
+    "Accept": "application/json",
+}
+
+# Send the GET request to retrieve user assignments for the app
+response = requests.get(endpoint, headers=headers)
+
+# Check the response status code
+if response.status_code == 200:
+    # Request was successful, parse and print the user assignments
+    user_assignments = response.json()
+    for assignment in user_assignments:
+        print(f"User ID: {assignment['id']}, User Login: {assignment['login']}")
+
+else:
+    # Request was not successful, print an error message
+    print(f"Failed to retrieve user assignments. Status Code: {response.status_code}")
+
+
+-------------------------------------------------------------------------------------------------------Iterate over each user to check their last sign-in date
+
+    
+# Request was successful, parse and iterate over the user assignments
+    user_assignments = response.json()
+    for assignment in user_assignments:
+        user_id = assignment['id']
+        user_login = assignment['login']
+        
+        # Check the user's last sign-in date
+        user_endpoint = f"{base_url}/api/v1/users/{user_id}"
+        user_response = requests.get(user_endpoint, headers=headers)
+        if user_response.status_code == 200:
+            user_data = user_response.json()
+            last_login = user_data.get('lastLogin')
+            if last_login:
+                print(f"User ID: {user_id}, User Login: {user_login}, Last Sign-In: {last_login}")
+            else:
+                print(f"User ID: {user_id}, User Login: {user_login}, Last Sign-In: Never")
+        else:
+            print(f"Failed to retrieve user details for user with ID: {user_id}")
+
+
+------------------------------------------------------------------------------------------------------------In case the last sign-in is more than 30 days ago, unassign the app
+
+
+# Threshold for the last sign-in (30 days ago)
+threshold_date = (datetime.now() - timedelta(days=30)).isoformat()
+
+# Send the GET request to retrieve user assignments for the app
+response = requests.get(endpoint, headers=headers)
+
+# Check the response status code
+if response.status_code == 200:
+    # Request was successful, parse and iterate over the user assignments
+    user_assignments = response.json()
+    for assignment in user_assignments:
+        user_id = assignment['id']
+        user_login = assignment['login']
+        
+        # Check the user's last sign-in date
+        user_endpoint = f"{base_url}/api/v1/users/{user_id}"
+        user_response = requests.get(user_endpoint, headers=headers)
+        
+        if user_response.status_code == 200:
+            user_data = user_response.json()
+            last_login = user_data.get('lastLogin')
+            if last_login:
+                last_login_date = datetime.fromisoformat(last_login)
+                if last_login_date <= threshold_date:
+                    # Unassign the app from the user
+                    unassign_endpoint = f"{base_url}/api/v1/apps/{app_name}/users/{user_id}"
+                    unassign_response = requests.delete(unassign_endpoint, headers=headers)
+                    if unassign_response.status_code == 204:
+                        print(f"Unassigned app from user ID: {user_id}, User Login: {user_login}")
+                    else:
+                        print(f"Failed to unassign app from user with ID: {user_id}")
+            else:
+                print(f"User ID: {user_id}, User Login: {user_login}, Last Sign-In: Never")
+        else:
+            print(f"Failed to retrieve user details for user with ID: {user_id}")
+
+else:
+    # Request was not successful, print an error message
+    print(f"Failed to retrieve user assignments. Status Code: {response.status_code}")
+
+
+   ------------------------------------------------------------------------------------------This should ignore users with the Okta user attribute (user.Team) “test-team”
+
+    if user_response.status_code == 200:
+            user_data = user_response.json()
+            last_login = user_data.get('lastLogin')
+            user_team = user_data.get('profile', {}).get('user.Team')
+            if last_login:
+                last_login_date = datetime.fromisoformat(last_login)
+                if (
+                    last_login_date <= threshold_date
+                    and user_team != "test-team"
+                ):
+                    # Unassign the app from the user
+                    unassign_endpoint = f"{base_url}/api/v1/apps/{app_name}/users/{user_id}"
+                    unassign_response = requests.delete(unassign_endpoint, headers=headers)
+                    if unassign_response.status_code == 204:
+                        print(f"Unassigned app from user ID: {user_id}, User Login: {user_login}")
+                    else:
+                        print(f"Failed to unassign app from user with ID: {user_id}")
+            else:
+                print(f"User ID: {user_id}, User Login: {user_login}, Last Sign-In: Never")
+        else:
+            print(f"Failed to retrieve user details for user with ID: {user_id}")
+
+------------------------------------------------------------------------------------------------Bonus - suggest ways in which the above can be ran once a week on Fridays
+
+
+
+pip install schedule
+
+
+    # Schedule the script to run every Friday at a specific time ( example: 10:00 )
+schedule.every().friday.at("10:00").do(run_script)
+
+# Keep the script running
+while True:
+    schedule.run_pending()
+    time.sleep(1)
+
+
+---------------------------------------------------------------------------------------------------Bonus - suggest ways to build an automated report report of the affected users
+
+    
+ # Add the affected user to the report
+                    affected_users.append({"User ID": user_id, "User Login": user_login, "Last Sign-In": last_login}
+
+
+             # Generate the report
+    report_file = "affected_users_report.txt"
+    with open(report_file, "w") as f:
+        f.write("Affected Users Report\n\n")
+        for user in affected_users:
+            f.write(f"User ID: {user['User ID']}\nUser Login: {user['User Login']}\nLast Sign-In: {user['Last Sign-In']}\n\n")
+
+    print(f"Report generated and saved as {report_file}")
+
+
+
+
+    SOURCES:
+
+
+    https://developer.okta.com/docs/reference/api/apps/#get-assigned-user-for-application
+
+    https://support.okta.com/help/s/question/0D50Z00008G7VUiSAN/how-can-i-get-a-report-with-the-list-of-all-the-user-and-the-applications-assigned-to-them?language=en_US
+
+    https://github.com/andreihava-okta/okta-python-scripts
+
+    And afcourse chat gpt :)
+    
